@@ -6,6 +6,9 @@ dist/
 build/
 *.tsbuildinfo
 
+# Smoke test temp artifacts
+scripts/_smoke_test.png
+
 # Environment variables (含 API Key，绝不提交)
 .env
 .env.*
