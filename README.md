@@ -1,5 +1,9 @@
 # picsense
 
+[![npm version](https://img.shields.io/npm/v/@honlnk/picsense.svg)](https://www.npmjs.com/package/@honlnk/picsense)
+[![License](https://img.shields.io/npm/l/@honlnk/picsense.svg)](https://github.com/honlnk/picsense/blob/main/LICENSE)
+[![Node](https://img.shields.io/node/v/@honlnk/picsense.svg)](https://nodejs.org)
+
 > 本地图片/视频识别 MCP，让单模态基座模型获得多模态视觉能力。
 
 `picsense` 是一款**本地安装**的 [MCP](https://modelcontextprotocol.io/)（Model Context Protocol）服务。它通过调用多模态视觉模型 API，让任何**单模态**基座模型（如 GLM-5.2 这类无法直接处理图片/视频的模型）也能识别图片与视频内容。
@@ -37,28 +41,37 @@
 
 ## 安装
 
-需要 Node.js ≥ 20。
+需要 Node.js ≥ 20。无需克隆仓库——直接用 `npx` 即可：
 
 ```bash
-# 方式一：本地构建
-git clone <repo-url> picsense
-cd picsense
-pnpm install
-pnpm build
+npx @honlnk/picsense
 ```
 
+或全局安装：
+
 ```bash
-# 方式二：直接用 npx（发布后可用）
-# npx picsense
+npm install -g @honlnk/picsense
+picsense
 ```
+
+> **本地开发**：克隆仓库后 `pnpm install && pnpm build`，入口在 `dist/index.js`。
+
+### 视频识别的 ffmpeg 依赖
+
+视频识别（`analyze_video`）需要 ffmpeg。安装时会自动下载内置的 `ffmpeg-static` 二进制。若该二进制下载失败（如 `--ignore-scripts`、企业内网代理屏蔽 GitHub releases），picsense 会自动 fallback 到**系统的 ffmpeg**——因此只要系统装了 ffmpeg 即可：
+
+```bash
+# macOS
+brew install ffmpeg
+# Debian / Ubuntu
+apt install ffmpeg
+```
+
+> **pnpm 用户**：pnpm 默认不运行第三方包的安装脚本，若用 pnpm 全局安装发现二进制未下载，确认 `package.json` 的 `pnpm.onlyBuiltDependencies` 已包含 `ffmpeg-static`，或直接装系统 ffmpeg 走 fallback。
 
 ## 配置
 
-通过环境变量配置，代码内零硬编码。复制 `.env.example` 为 `.env` 并填入真实值：
-
-```bash
-cp .env.example .env
-```
+通过环境变量配置，代码内零硬编码。环境变量在 MCP 客户端的配置里通过 `env` 字段传入（见下方接入示例），本地开发时也可用 `.env` 文件。
 
 ### 环境变量
 
@@ -89,16 +102,44 @@ OPENAI_MODEL=gpt-5.6-sol
 
 **Qwen（后续支持） / Kimi（后续支持）：** 当前版本仅实现 OpenAI 适配器，Qwen 与 Kimi 适配器规划中。新增 provider 只需实现 `VisionProvider` 接口。
 
-## 接入 ZCode
+## 接入 AI 客户端
 
-在 ZCode 的 MCP 配置中加入（其他 Agent 暂不考虑）：
+### ZCode
+
+在 ZCode 的 MCP 配置中加入：
 
 ```json
 {
   "mcpServers": {
     "picsense": {
-      "command": "node",
-      "args": ["/path/to/picsense/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "@honlnk/picsense"],
+      "env": {
+        "DEFAULT_PROVIDER": "openai",
+        "OPENAI_API_KEY": "sk-xxx",
+        "OPENAI_MODEL": "gpt-5.6-sol"
+      }
+    }
+  }
+}
+```
+
+> `-y` 让 npx 首次运行时自动确认安装，避免阻塞。
+
+### Claude Desktop / Cursor / 其他 MCP 客户端
+
+配置 JSON 结构相同（`command` + `args` + `env`），按各客户端的 MCP 配置位置填入即可。
+
+### Windows
+
+Windows 上 npx 需通过 `cmd` 包裹：
+
+```json
+{
+  "mcpServers": {
+    "picsense": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@honlnk/picsense"],
       "env": {
         "DEFAULT_PROVIDER": "openai",
         "OPENAI_API_KEY": "sk-xxx",
@@ -118,7 +159,7 @@ OPENAI_MODEL=gpt-5.6-sol
 
 ## 视频识别说明
 
-由于默认 provider（OpenAI Responses API）原生不支持视频，`analyze_video` 采用**抽帧方案**：用内置 ffmpeg（`ffmpeg-static`，跨平台自带二进制，无需系统安装）把视频解码成 JPEG 帧序列，再作为多张图发送给视觉模型。
+由于默认 provider（OpenAI Responses API）原生不支持视频，`analyze_video` 采用**抽帧方案**：用 ffmpeg 把视频解码成 JPEG 帧序列，再作为多张图发送给视觉模型。ffmpeg 优先用内置的 `ffmpeg-static` 二进制，下载失败时自动 fallback 到系统 ffmpeg（见上方安装说明）。
 
 - 默认每秒抽 1 帧、最多 30 帧（可通过 `VIDEO_FPS` / `VIDEO_MAX_FRAMES` 调整）
 - 视频格式：mp4 / mov / m4v / avi / wmv / webm / mkv / flv / mpeg / mpg

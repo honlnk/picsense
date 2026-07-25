@@ -1,16 +1,28 @@
 {
-  "name": "picsense",
+  "name": "@honlnk/picsense",
   "version": "0.1.0",
-  "description": "本地图片识别 MCP，让单模态基座模型获得多模态视觉能力。支持多轮迭代识别。",
+  "description": "A local MCP server that gives unimodal LLMs multimodal vision — image/video recognition with multi-turn iterative analysis.",
   "type": "module",
   "license": "Apache-2.0",
   "author": "honlnk",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/honlnk/picsense.git"
+  },
+  "homepage": "https://github.com/honlnk/picsense#readme",
+  "bugs": {
+    "url": "https://github.com/honlnk/picsense/issues"
+  },
   "keywords": [
     "mcp",
+    "mcp-server",
     "model-context-protocol",
+    "claude",
     "vision",
     "image-recognition",
+    "video-recognition",
     "multimodal",
+    "llm-tools",
     "ai-tools"
   ],
   "engines": {
@@ -20,12 +32,13 @@
     "picsense": "dist/index.js"
   },
   "files": [
-    "dist",
-    "README.md",
-    ".env.example"
+    "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node -e \"require('fs').chmodSync('dist/index.js', 0o755)\"",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "smoke": "tsx scripts/smoke.ts",
@@ -34,7 +47,8 @@
     "smoke:video": "tsx scripts/smoke-video.ts",
     "e2e": "pnpm build && tsx scripts/e2e-client.ts",
     "sim": "pnpm build && tsx scripts/zcode-sim.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build && npm run typecheck"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

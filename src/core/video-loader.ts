@@ -56,6 +56,65 @@ export class VideoLoadError extends Error {
 const VIDEO_EXTS = new Set(['mp4', 'mov', 'm4v', 'avi', 'wmv', 'webm', 'mkv', 'flv', 'mpeg', 'mpg']);
 
 /**
+ * 解析 ffmpeg 可执行文件路径。
+ *
+ * 解析顺序：
+ * 1. ffmpeg-static 自带二进制（npm 安装时由其 install 脚本下载）—— 检查文件存在。
+ * 2. 系统 ffmpeg（用户自行安装的 brew/apt/官网版本）—— 通过 which/where 查找。
+ *
+ * 解决场景：--ignore-scripts / 企业内网代理导致 ffmpeg-static 的 install 脚本
+ * 未执行、二进制缺失时，只要用户系统装了 ffmpeg 仍可正常工作。
+ *
+ * 两者都不可用时抛 VideoLoadError，提示用户安装。
+ */
+async function resolveFfmpeg(): Promise<string> {
+  // 1. ffmpeg-static 自带二进制（install 脚本执行过才存在）。
+  if (ffmpegStatic) {
+    try {
+      const stats = await stat(ffmpegStatic);
+      if (stats.isFile()) return ffmpegStatic;
+    } catch {
+      // 文件不存在，继续 fallback。
+    }
+  }
+
+  // 2. 系统 ffmpeg。
+  const systemFfmpeg = await whichSystem('ffmpeg');
+  if (systemFfmpeg) return systemFfmpeg;
+
+  throw new VideoLoadError(
+    'ffmpeg is required for video recognition but was not found. ' +
+      'The bundled ffmpeg-static binary is missing (its install script may have been skipped, ' +
+      'e.g. under --ignore-scripts or a restricted network), and no system ffmpeg was detected. ' +
+      'Please install ffmpeg (e.g. `brew install ffmpeg` on macOS, `apt install ffmpeg` on Debian/Ubuntu) ' +
+      'or reinstall this package without --ignore-scripts.',
+  );
+}
+
+/**
+ * 在 PATH 中查找可执行文件（跨平台）。
+ * Unix 用 which，Windows 用 where。找不到返回 undefined（不抛错）。
+ */
+async function whichSystem(bin: string): Promise<string | undefined> {
+  const cmd = process.platform === 'win32' ? 'where' : 'which';
+  return new Promise((resolve) => {
+    const proc = spawn(cmd, [bin], { stdio: ['ignore', 'pipe', 'ignore'] });
+    let out = '';
+    proc.stdout.on('data', (chunk: Buffer) => (out += chunk.toString()));
+    proc.on('error', () => resolve(undefined));
+    proc.on('close', (code) => {
+      if (code !== 0) {
+        resolve(undefined);
+        return;
+      }
+      // which/where 可能返回多行（多个匹配），取第一个。
+      const first = out.split(/\r?\n/).map((l) => l.trim()).find((l) => l.length > 0);
+      resolve(first);
+    });
+  });
+}
+
+/**
  * 判断来源形态并加载视频。
  *
  * @param source 原始视频引用（URL / 本地路径）。
@@ -72,12 +131,10 @@ export async function loadVideo(
     throw new VideoLoadError('Empty video source.');
   }
 
-  // ffmpeg-static 在极少数平台可能解析失败。
-  if (!ffmpegStatic) {
-    throw new VideoLoadError(
-      'ffmpeg binary not available for this platform. Please install ffmpeg on your system.',
-    );
-  }
+  // 解析 ffmpeg 路径：优先 ffmpeg-static 自带二进制，失败则 fallback 系统 ffmpeg。
+  // 解决场景：--ignore-scripts / 企业内网导致 ffmpeg-static install 脚本未执行、
+  // 二进制缺失时，只要用户系统装了 ffmpeg（brew/apt/官网）仍可工作。
+  const ffmpegBin = await resolveFfmpeg();
 
   // 临时工作目录：下载 / 抽帧都在这里，用完即删。
   const workDir = path.join(os.tmpdir(), `picsense-video-${randomUUID()}`);
@@ -95,7 +152,7 @@ export async function loadVideo(
     }
 
     // 抽帧。
-    const frames = await extractFrames(videoPath, workDir, opts);
+    const frames = await extractFrames(ffmpegBin, videoPath, workDir, opts);
     if (frames.length === 0) {
       throw new VideoLoadError(
         `Failed to extract any frames from "${trimmed}". The file may not be a valid video or is corrupted.`,
@@ -198,6 +255,7 @@ async function writeFileStream(
  * - -q:v 2：JPEG 质量（2 为高质量）
  */
 async function extractFrames(
+  ffmpegBin: string,
   videoPath: string,
   workDir: string,
   opts: FrameOptions,
@@ -216,7 +274,7 @@ async function extractFrames(
     '-loglevel', 'error',
   ];
 
-  await runFfmpeg(ffmpegStatic!, args);
+  await runFfmpeg(ffmpegBin, args);
 
   // 读取抽出的帧（按文件名排序保证时间顺序）。
   const files = (await readdir(frameDir))
