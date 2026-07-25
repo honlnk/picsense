@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>picsense · 本地图片/视频识别 MCP</title>
+  <meta name="description" content="picsense 是一个本地安装的 MCP 服务，让单模态基座模型获得多模态视觉能力——图片/视频识别，支持多轮迭代。" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230969da'/%3E%3Ccircle cx='38' cy='42' r='13' fill='none' stroke='white' stroke-width='6'/%3E%3Cpath d='M20 72 L42 52 L58 66 L78 44 L82 72 Z' fill='white'/%3E%3C/svg%3E" />
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-soft: #f7f8fa;
+      --bg-code: #f3f4f6;
+      --border: #e5e7eb;
+      --text: #1f2328;
+      --text-soft: #57606a;
+      --text-muted: #8b949e;
+      --accent: #0969da;
+      --accent-soft: #ddf4ff;
+      --green: #1a7f37;
+      --green-soft: #dafbe1;
+      --orange: #bc4c00;
+      --orange-soft: #fff1e5;
+      --purple: #6f4ed1;
+      --purple-soft: #f1e8ff;
+      --shadow: 0 1px 3px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.04);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d1117;
+        --bg-soft: #161b22;
+        --bg-code: #1c2128;
+        --border: #30363d;
+        --text: #e6edf3;
+        --text-soft: #9198a1;
+        --text-muted: #6e7681;
+        --accent: #58a6ff;
+        --accent-soft: #1f6feb22;
+        --green: #3fb950;
+        --green-soft: #3fb95022;
+        --orange: #db6d28;
+        --orange-soft: #db6d2822;
+        --purple: #a371f7;
+        --purple-soft: #6f4ed122;
+        --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.3);
+      }
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      font-size: 16px;
+      line-height: 1.7;
+      color: var(--text);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+    }
+    code, pre, .mono {
+      font-family: "SFMono-Regular", "JetBrains Mono", Consolas, "Liberation Mono", Menlo, monospace;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .container { max-width: 920px; margin: 0 auto; padding: 0 24px; }
+
+    /* Header */
+    header {
+      position: sticky; top: 0; z-index: 10;
+      background: color-mix(in srgb, var(--bg) 85%, transparent);
+      backdrop-filter: saturate(180%) blur(12px);
+      -webkit-backdrop-filter: saturate(180%) blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav { display: flex; align-items: center; justify-content: space-between; height: 56px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; color: var(--text); }
+    .brand-logo { width: 28px; height: 28px; display: block; }
+    .nav-links { display: flex; gap: 8px; align-items: center; }
+    .nav-links a {
+      color: var(--text-soft); font-size: 14px; padding: 6px 12px;
+      border-radius: 6px; transition: all .15s;
+    }
+    .nav-links a:hover { background: var(--bg-soft); color: var(--text); text-decoration: none; }
+    .btn-github {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--bg-soft); border: 1px solid var(--border);
+      padding: 6px 14px; border-radius: 6px; font-size: 13px; color: var(--text);
+    }
+    .btn-github:hover { background: var(--bg-code); text-decoration: none; }
+
+    /* Hero */
+    .hero { padding: 80px 0 60px; text-align: center; }
+    .hero-badge {
+      display: inline-block; padding: 4px 12px; border-radius: 999px;
+      background: var(--accent-soft); color: var(--accent);
+      font-size: 13px; font-weight: 500; margin-bottom: 24px;
+    }
+    .hero h1 {
+      font-size: 48px; font-weight: 800; letter-spacing: -0.02em;
+      margin: 0 0 16px; line-height: 1.15;
+    }
+    .hero h1 .grad {
+      background: linear-gradient(135deg, var(--accent), var(--purple));
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero p { font-size: 20px; color: var(--text-soft); max-width: 640px; margin: 0 auto 32px; }
+    .hero-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 15px;
+      transition: all .15s; cursor: pointer; border: 1px solid transparent;
+    }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent); filter: brightness(1.1); text-decoration: none; }
+    .btn-secondary { background: var(--bg-soft); color: var(--text); border-color: var(--border); }
+    .btn-secondary:hover { background: var(--bg-code); text-decoration: none; }
+
+    /* npm install command */
+    .install-cmd {
+      display: inline-flex; align-items: center; gap: 12px;
+      background: var(--bg-code); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 16px; margin-top: 8px;
+      font-size: 14px; color: var(--text);
+    }
+    .install-cmd code { background: transparent; padding: 0; color: var(--text); }
+    .install-cmd .prompt { color: var(--green); user-select: none; }
+
+    /* Sections */
+    section { padding: 56px 0; border-top: 1px solid var(--border); }
+    .section-title {
+      font-size: 14px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--accent); margin: 0 0 8px;
+    }
+    .section-desc { color: var(--text-soft); font-size: 16px; margin: 0 0 32px; max-width: 720px; }
+    h2 { font-size: 32px; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 8px; }
+    h3 { font-size: 20px; font-weight: 600; margin: 32px 0 12px; }
+    h4 { font-size: 16px; font-weight: 600; margin: 24px 0 8px; }
+    p { margin: 12px 0; }
+
+    /* Tool cards */
+    .tool-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    @media (max-width: 720px) { .tool-grid { grid-template-columns: 1fr; } }
+    .tool-card {
+      background: var(--bg-soft); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px; transition: all .2s;
+    }
+    .tool-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+    .tool-card .tool-name {
+      font-family: "SFMono-Regular", "JetBrains Mono", Consolas, monospace;
+      font-size: 14px; font-weight: 600; color: var(--accent);
+      background: var(--accent-soft); padding: 2px 8px; border-radius: 4px;
+      display: inline-block; margin-bottom: 8px;
+    }
+    .tool-card .tool-desc { font-size: 14px; color: var(--text-soft); margin: 6px 0 10px; }
+    .tool-card .tool-params { font-size: 12px; color: var(--text-muted); }
+    .tool-card .tool-params code { background: var(--bg-code); padding: 1px 5px; border-radius: 3px; color: var(--text-soft); }
+
+    /* Feature highlight (多轮迭代) */
+    .highlight-card {
+      background: linear-gradient(135deg, var(--purple-soft), var(--accent-soft));
+      border: 1px solid var(--border); border-radius: 16px;
+      padding: 32px; margin: 16px 0;
+    }
+    .highlight-card h3 { margin-top: 0; color: var(--purple); }
+    .turn-flow {
+      display: flex; flex-direction: column; gap: 12px; margin: 20px 0;
+    }
+    .turn-item {
+      display: flex; align-items: flex-start; gap: 14px;
+      background: color-mix(in srgb, var(--bg) 70%, transparent);
+      border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px;
+      font-size: 14px;
+    }
+    .turn-badge {
+      flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+      display: grid; place-items: center; font-weight: 700; font-size: 13px;
+      background: var(--purple); color: white;
+    }
+    .turn-item .turn-text { color: var(--text-soft); }
+    .turn-item .turn-text strong { color: var(--text); }
+
+    /* Code block */
+    pre {
+      background: var(--bg-code); border: 1px solid var(--border);
+      border-radius: 8px; padding: 16px 18px; overflow-x: auto;
+      font-size: 13.5px; line-height: 1.6; margin: 16px 0;
+    }
+    pre code { background: transparent; padding: 0; color: var(--text); }
+    code:not(pre code) { background: var(--bg-code); padding: 2px 6px; border-radius: 4px; font-size: 0.9em; color: var(--text); }
+
+    /* Callout */
+    .callout {
+      padding: 16px 20px; border-radius: 8px; margin: 20px 0;
+      font-size: 14px; border: 1px solid;
+    }
+    .callout-info { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
+    .callout-warn { background: var(--orange-soft); border-color: color-mix(in srgb, var(--orange) 30%, transparent); }
+    .callout-success { background: var(--green-soft); border-color: color-mix(in srgb, var(--green) 30%, transparent); }
+    .callout strong { color: var(--text); }
+
+    /* Inline list */
+    ul.feature-list { padding-left: 20px; margin: 12px 0; }
+    ul.feature-list li { margin: 6px 0; }
+
+    /* Table */
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { font-weight: 600; color: var(--text); background: var(--bg-soft); }
+    td code { font-size: 13px; }
+
+    /* Tabs */
+    .tabs { margin: 16px 0; }
+    .tab-headers { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 0; }
+    .tab-headers button {
+      background: none; border: none; cursor: pointer;
+      padding: 10px 16px; font-size: 14px; font-weight: 500;
+      color: var(--text-soft); border-bottom: 2px solid transparent;
+      margin-bottom: -1px; font-family: inherit;
+    }
+    .tab-headers button.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-headers button:hover { color: var(--text); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .tab-panel pre { margin-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
+
+    /* Footer */
+    footer { border-top: 1px solid var(--border); padding: 40px 0; text-align: center; color: var(--text-muted); font-size: 14px; }
+    footer a { color: var(--text-soft); }
+
+    @media (max-width: 600px) {
+      .hero { padding: 60px 0 40px; }
+      .hero h1 { font-size: 36px; }
+      .hero p { font-size: 17px; }
+      h2 { font-size: 26px; }
+      .nav-links a:not(.btn-github) { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container nav">
+      <a href="/" class="brand">
+        <img class="brand-logo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230969da'/%3E%3Ccircle cx='38' cy='42' r='13' fill='none' stroke='white' stroke-width='6'/%3E%3Cpath d='M20 72 L42 52 L58 66 L78 44 L82 72 Z' fill='white'/%3E%3C/svg%3E" alt="picsense" />
+        <span>picsense</span>
+      </a>
+      <nav class="nav-links">
+        <a href="#features">功能</a>
+        <a href="#iterative">多轮迭代</a>
+        <a href="#usage">使用方法</a>
+        <a href="#config">配置</a>
+        <a href="https://github.com/honlnk/picsense" class="btn-github" target="_blank" rel="noopener">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          GitHub
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <div class="container hero">
+    <span class="hero-badge">本地安装 · 开源 · MCP 协议</span>
+    <h1>让单模态模型<br/><span class="grad">看懂图片与视频</span></h1>
+    <p>picsense 是一个本地安装的 MCP 服务，通过调用多模态视觉模型 API，让 GLM-5.2 这类<strong>单模态</strong>基座模型也能识别图片与视频内容。核心特色：支持<strong>多轮迭代</strong>识别——边干边查，逐步精修。</p>
+    <div class="install-cmd">
+      <span class="prompt">$</span>
+      <code>npx @honlnk/picsense</code>
+    </div>
+    <div class="hero-actions" style="margin-top: 24px;">
+      <a href="#usage" class="btn btn-primary">开始使用</a>
+      <a href="#iterative" class="btn btn-secondary">了解多轮迭代</a>
+      <a href="https://github.com/honlnk/picsense" class="btn btn-secondary" target="_blank" rel="noopener">查看源码</a>
+    </div>
+  </div>
+
+  <!-- Features -->
+  <section id="features">
+    <div class="container">
+      <p class="section-title">功能</p>
+      <h2>4 个 MCP 工具</h2>
+      <p class="section-desc">遵循 <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener">Model Context Protocol</a> 标准，按输入形态划分，把 prompt 控制权交给基座模型。</p>
+
+      <div class="tool-grid">
+        <div class="tool-card">
+          <span class="tool-name">analyze_images</span>
+          <div class="tool-desc">图片识别 + 多轮迭代。传一张是单图识别，传多张是批量/对比。支持 URL / 本地路径 / base64 自动识别。</div>
+          <div class="tool-params">参数：<code>image_sources</code> <code>prompt</code> <code>session_id</code></div>
+        </div>
+        <div class="tool-card">
+          <span class="tool-name">analyze_video</span>
+          <div class="tool-desc">视频识别。内置 ffmpeg 抽帧后送视觉模型分析（默认每秒 1 帧、最多 30 帧），同样支持多轮迭代。</div>
+          <div class="tool-params">参数：<code>video_source</code> <code>prompt</code> <code>session_id</code></div>
+        </div>
+        <div class="tool-card">
+          <span class="tool-name">analyze_document</span>
+          <div class="tool-desc">解析文档（URL / HTML / markdown），识别其中所有图片，在图片位置旁标注描述，返回标注后的完整文档。</div>
+          <div class="tool-params">参数：<code>document</code></div>
+        </div>
+        <div class="tool-card">
+          <span class="tool-name">list_sessions</span>
+          <div class="tool-desc">查看当前所有识别会话的列表与简介，用于回顾历史识别记录、恢复上下文。</div>
+          <div class="tool-params">参数：无</div>
+        </div>
+      </div>
+
+      <h3>核心特性</h3>
+      <ul class="feature-list">
+        <li><strong>多轮迭代识别</strong> — 基座模型可多次调用，边干边查，逐步精修对图片/视频的理解（详见下方）</li>
+        <li><strong>本地 stdio 部署</strong> — 走本地进程间通信，不依赖外部服务器，<code>npx</code> 一行启动</li>
+        <li><strong>多 provider 架构</strong> — <code>VisionProvider</code> 接口，首版支持 OpenAI，可扩展 Qwen / Kimi</li>
+        <li><strong>任意 provider 自配</strong> — 接任何实现了 OpenAI Responses API 的网关，不绑定单一模型厂商</li>
+        <li><strong>零硬编码配置</strong> — 全部配置走环境变量，代码内零硬编码</li>
+        <li><strong>自动识别输入形态</strong> — URL / 本地路径 / base64 三种形态兼容，适配不同 Agent 的传图方式</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 多轮迭代（核心差异化）-->
+  <section id="iterative">
+    <div class="container">
+      <p class="section-title">核心特色</p>
+      <h2>多轮迭代识别</h2>
+      <p class="section-desc">这是 picsense 最核心的差异化点——市面上几乎所有图片识别 MCP 都是一次性的，但一次性的视觉描述往往不够详细或不够准确。</p>
+
+      <div class="highlight-card">
+        <h3>边干边查，逐步精修</h3>
+        <p>允许基座模型在处理任务的过程中<strong>多次调用</strong> picsense，而不是一次性识别就结束：</p>
+        <div class="turn-flow">
+          <div class="turn-item">
+            <span class="turn-badge">1</span>
+            <span class="turn-text"><strong>首轮</strong>：<code>analyze_images</code>（图 + 初始 prompt）→ 创建 session，返回描述 A + <code>session_id</code></span>
+          </div>
+          <div class="turn-item">
+            <span class="turn-badge">2</span>
+            <span class="turn-text">基座模型判断：描述 A 是否满足用户需求？</span>
+          </div>
+          <div class="turn-item">
+            <span class="turn-badge">3</span>
+            <span class="turn-text"><strong>不满足则再调</strong>：<code>analyze_images</code>（<code>session_id</code> + 新 prompt，如「重点描述导航栏样式」）→ 返回更精确的描述 B</span>
+          </div>
+          <div class="turn-item">
+            <span class="turn-badge">✓</span>
+            <span class="turn-text"><strong>重复直到满足</strong>，基座模型基于最终描述继续处理用户需求</span>
+          </div>
+        </div>
+        <div class="callout callout-success" style="margin-bottom: 0;">
+          <strong>典型场景：</strong>用户发送一张复杂设计稿 + 「帮我还原这个页面」。基座模型先拿到整体描述开始写代码，写到某个组件发现细节不清，<strong>重新调 picsense</strong> 聚焦该局部——这种「边干边查」的能力，一次性识别方案做不到。
+        </div>
+      </div>
+
+      <div class="callout callout-info">
+        <strong>session 机制：</strong>多轮迭代通过 MCP 侧的 session 实现——picsense 维护与视觉模型的完整多轮对话历史，基座模型只需传一个 <code>session_id</code> 字符串即可在已有对话基础上继续。视觉模型拿到的是<strong>原生多轮对话</strong>（完整 messages 数组），而非被压扁成单轮 prompt。
+      </div>
+    </div>
+  </section>
+
+  <!-- Usage -->
+  <section id="usage">
+    <div class="container">
+      <p class="section-title">使用方法</p>
+      <h2>接入 AI 客户端</h2>
+      <p class="section-desc">需要 Node.js ≥ 20。无需克隆仓库，<code>npx</code> 一行启动，配置一次永久生效。</p>
+
+      <h3>1. 配置 AI 客户端</h3>
+      <p>在你的 AI 客户端（ZCode / Claude Desktop / Cursor / 其他 MCP 客户端）的配置文件中加入。需提供自己的多模态模型 API Key（默认用 OpenAI Responses API）：</p>
+
+      <div class="tabs">
+        <div class="tab-headers">
+          <button class="active" data-tab="unix">macOS / Linux</button>
+          <button data-tab="windows">Windows</button>
+        </div>
+        <div class="tab-panel active" id="tab-unix">
+          <pre><code>{
+  "mcpServers": {
+    "picsense": {
+      "command": "npx",
+      "args": ["-y", "@honlnk/picsense"],
+      "env": {
+        "DEFAULT_PROVIDER": "openai",
+        "OPENAI_API_KEY": "sk-xxx",
+        "OPENAI_MODEL": "gpt-5.6-sol"
+      }
+    }
+  }
+}</code></pre>
+        </div>
+        <div class="tab-panel" id="tab-windows">
+          <pre><code>{
+  "mcpServers": {
+    "picsense": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@honlnk/picsense"],
+      "env": {
+        "DEFAULT_PROVIDER": "openai",
+        "OPENAI_API_KEY": "sk-xxx",
+        "OPENAI_MODEL": "gpt-5.6-sol"
+      }
+    }
+  }
+}</code></pre>
+        </div>
+      </div>
+
+      <div class="callout callout-warn">
+        <strong>Windows 必读：</strong>Windows 上 npx 需通过 <code>cmd /c</code> 包裹（如上），否则无法正确启动。
+      </div>
+
+      <h3>2. 验证</h3>
+      <p>配置完成后，在 AI 客户端里粘贴一张图片提问，例如「描述这张 UI 截图的布局」。基座模型会自动调用 <code>analyze_images</code> 工具识别并返回描述。</p>
+
+      <h3>使用示例</h3>
+      <h4>单图识别</h4>
+      <pre><code>analyze_images({
+  image_sources: ["https://example.com/screenshot.png"],
+  prompt: "描述这张 UI 截图的整体布局"
+})</code></pre>
+
+      <h4>多轮迭代——细化局部</h4>
+      <pre><code>// 第 2 轮（复用上一轮返回的 session_id）
+analyze_images({
+  session_id: "&lt;上一轮返回的 session_id&gt;",
+  prompt: "重点描述导航栏的样式，包括颜色、间距、字体"
+})</code></pre>
+
+      <h4>视频识别</h4>
+      <pre><code>analyze_video({
+  video_source: "https://example.com/demo.mp4",
+  prompt: "描述这段视频的内容和关键画面"
+})</code></pre>
+    </div>
+  </section>
+
+  <!-- Config -->
+  <section id="config">
+    <div class="container">
+      <p class="section-title">配置</p>
+      <h2>环境变量</h2>
+      <p class="section-desc">全部配置走环境变量，代码内零硬编码。在 MCP 配置的 <code>env</code> 字段里传入。</p>
+
+      <table>
+        <thead>
+          <tr><th>变量</th><th>必填</th><th>默认值</th><th>说明</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>DEFAULT_PROVIDER</code></td><td>是</td><td><code>openai</code></td><td>默认 provider</td></tr>
+          <tr><td><code>OPENAI_API_KEY</code></td><td>是*</td><td>—</td><td>OpenAI API Key</td></tr>
+          <tr><td><code>OPENAI_MODEL</code></td><td>是*</td><td>—</td><td>模型名（如 <code>gpt-5.6-sol</code>）</td></tr>
+          <tr><td><code>OPENAI_BASE_URL</code></td><td>否</td><td>官方地址</td><td>自定义 base URL（代理或兼容网关）</td></tr>
+          <tr><td><code>MAX_IMAGE_MB</code></td><td>否</td><td><code>5</code></td><td>单张图片大小上限（MB）</td></tr>
+          <tr><td><code>MAX_VIDEO_MB</code></td><td>否</td><td><code>100</code></td><td>单个视频大小上限（MB）</td></tr>
+          <tr><td><code>VIDEO_MAX_FRAMES</code></td><td>否</td><td><code>30</code></td><td>视频抽帧最大帧数</td></tr>
+          <tr><td><code>VIDEO_FPS</code></td><td>否</td><td><code>1</code></td><td>视频抽帧采样率（每秒抽几帧）</td></tr>
+          <tr><td><code>TIMEOUT_MS</code></td><td>否</td><td><code>300000</code></td><td>视觉模型请求超时（毫秒）</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size: 13px; color: var(--text-muted);">* 默认 provider 的 Key/Model 必填；其他 provider 仅在切换使用时才需要。</p>
+
+      <div class="callout callout-info">
+        <strong>API 格式：</strong>provider 使用 OpenAI <strong>Responses API</strong>（<code>/v1/responses</code> 原生格式），兼容任何实现了该 API 的网关。换 provider 只需改环境变量，无需改代码。
+      </div>
+
+      <h3>视频识别的 ffmpeg 依赖</h3>
+      <p><code>analyze_video</code> 需要 ffmpeg。安装时自动下载内置的 <code>ffmpeg-static</code> 二进制；若下载失败（如 <code>--ignore-scripts</code>、企业内网代理），会自动 fallback 到<strong>系统 ffmpeg</strong>：</p>
+      <pre><code># macOS
+brew install ffmpeg
+# Debian / Ubuntu
+apt install ffmpeg</code></pre>
+      <div class="callout callout-warn">
+        <strong>pnpm 用户：</strong>pnpm 默认不运行第三方包安装脚本。若用 pnpm 全局安装发现 ffmpeg 二进制未下载，可直接装系统 ffmpeg 走 fallback，或确认 <code>pnpm.onlyBuiltDependencies</code> 已包含 <code>ffmpeg-static</code>。
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <p>
+        <a href="https://github.com/honlnk/picsense" target="_blank" rel="noopener">GitHub</a>
+        &nbsp;·&nbsp;
+        <a href="https://www.npmjs.com/package/@honlnk/picsense" target="_blank" rel="noopener">npm</a>
+        &nbsp;·&nbsp;
+        <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener">MCP 协议</a>
+        &nbsp;·&nbsp;
+        <a href="https://github.com/honlnk/picsense/issues" target="_blank" rel="noopener">问题反馈</a>
+      </p>
+      <p style="margin-top: 12px; font-size: 13px;">picsense · 开源 MCP 服务 · Apache-2.0</p>
+    </div>
+  </footer>
+
+  <script>
+    // Tab switching (唯一的 JS：macOS/Linux vs Windows 配置切换)
+    document.querySelectorAll('.tab-headers button').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var tab = this.getAttribute('data-tab');
+        this.parentElement.querySelectorAll('button').forEach(function(b) { b.classList.remove('active'); });
+        this.classList.add('active');
+        document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+        document.getElementById('tab-' + tab).classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>
