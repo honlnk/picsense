@@ -23,6 +23,7 @@ import { SessionManager } from './core/session-manager.js';
 import { analyzeImages, ToolInputError } from './tools/analyze-images.js';
 import { listSessions } from './tools/list-sessions.js';
 import { analyzeDocument } from './tools/analyze-document.js';
+import { analyzeVideo, VideoLoadError } from './tools/analyze-video.js';
 import { SessionNotFoundError } from './core/session-manager.js';
 
 /** 把结果对象包成 MCP 文本 content（标准做法）。 */
@@ -145,6 +146,44 @@ async function main(): Promise<void> {
     },
   );
 
+  // ===== 工具 4：analyze_video =====
+  server.registerTool(
+    'analyze_video',
+    {
+      description:
+        '识别视频内容。把视频抽帧后发送给视觉模型分析（默认每秒抽 1 帧、最多 30 帧）。' +
+        '支持多轮迭代——首次调用创建 session，后续调用传入 session_id 可在已有对话基础上追加提问。',
+      inputSchema: {
+        video_source: z
+          .string()
+          .optional()
+          .describe('视频来源（http URL / 本地文件路径），自动识别。首次调用创建 session 时必填；后续轮次传入 session_id 时可省略（沿用该 session 的视频）'),
+        prompt: z.string().describe('对视频的识别要求，根据当前任务意图编写'),
+        session_id: z
+          .string()
+          .optional()
+          .describe('传入已有 session 的 ID 以发起后续轮次；不传则创建新 session'),
+      },
+    },
+    async (args) => {
+      try {
+        const result = await analyzeVideo(
+          sessionManager,
+          {
+            video_source: args.video_source,
+            prompt: args.prompt,
+            session_id: args.session_id,
+          },
+          config.maxVideoBytes,
+          { fps: config.videoFps, maxFrames: config.videoMaxFrames },
+        );
+        return asText(result);
+      } catch (err) {
+        return asError(formatError(err));
+      }
+    },
+  );
+
   // stdio 传输。
   const transport = new StdioServerTransport();
   await server.connect(transport);
@@ -173,6 +212,9 @@ function formatError(err: unknown): string {
   }
   if (err instanceof ToolInputError) {
     return `参数错误: ${err.message}`;
+  }
+  if (err instanceof VideoLoadError) {
+    return `视频加载失败: ${err.message}`;
   }
   if (err instanceof Error) {
     return `识别失败: ${err.message}`;

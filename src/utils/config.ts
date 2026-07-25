@@ -28,6 +28,12 @@ export interface AppConfig {
   readonly providers: Record<ProviderName, ProviderConfig | undefined>;
   /** 单张图片大小上限（字节），默认 5MB。 */
   readonly maxImageBytes: number;
+  /** 单个视频大小上限（字节），默认 100MB。 */
+  readonly maxVideoBytes: number;
+  /** 视频抽帧的最大帧数，默认 30。 */
+  readonly videoMaxFrames: number;
+  /** 视频抽帧的采样率（每秒抽几帧），默认 1。 */
+  readonly videoFps: number;
   /** 视觉模型请求超时（毫秒），默认 300000（5 分钟）。 */
   readonly timeoutMs: number;
   /** session 过期时长（毫秒），默认 24 小时。 */
@@ -100,10 +106,29 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     throw new ConfigError(`TIMEOUT_MS="${env['TIMEOUT_MS']}" is not a positive number.`);
   }
 
+  // 视频配置（可选，均有默认值）。
+  const maxVideoMb = Number(env['MAX_VIDEO_MB'] ?? '100');
+  if (!Number.isFinite(maxVideoMb) || maxVideoMb <= 0) {
+    throw new ConfigError(`MAX_VIDEO_MB="${env['MAX_VIDEO_MB']}" is not a positive number.`);
+  }
+
+  const videoMaxFrames = Number(env['VIDEO_MAX_FRAMES'] ?? '30');
+  if (!Number.isFinite(videoMaxFrames) || videoMaxFrames <= 0) {
+    throw new ConfigError(`VIDEO_MAX_FRAMES="${env['VIDEO_MAX_FRAMES']}" is not a positive number.`);
+  }
+
+  const videoFps = Number(env['VIDEO_FPS'] ?? '1');
+  if (!Number.isFinite(videoFps) || videoFps <= 0) {
+    throw new ConfigError(`VIDEO_FPS="${env['VIDEO_FPS']}" is not a positive number.`);
+  }
+
   return {
     defaultProvider,
     providers,
     maxImageBytes: Math.floor(maxImageMb * ONE_MB),
+    maxVideoBytes: Math.floor(maxVideoMb * ONE_MB),
+    videoMaxFrames: Math.floor(videoMaxFrames),
+    videoFps,
     timeoutMs,
     sessionTtlMs: 24 * ONE_HOUR,
     sessionCleanupIntervalMs: ONE_HOUR,

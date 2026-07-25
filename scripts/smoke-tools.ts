@@ -8,6 +8,7 @@
 import { analyzeImages, ToolInputError } from '../src/tools/analyze-images.js';
 import { listSessions } from '../src/tools/list-sessions.js';
 import { analyzeDocument } from '../src/tools/analyze-document.js';
+import { analyzeVideo } from '../src/tools/analyze-video.js';
 import { SessionManager } from '../src/core/session-manager.js';
 import type { VisionProvider, VisionRequest, VisionResponse } from '../src/providers/index.js';
 
@@ -124,9 +125,38 @@ end.`;
   if (!rf.document.includes('[识别失败')) throw new Error('应标注失败原因');
 }
 
+async function testAnalyzeVideoValidation(): Promise<void> {
+  console.log('\n=== analyze_video 参数校验 ===');
+  const mgr = new SessionManager(new MockProvider(), 5 * 1024 * 1024);
+
+  // 空 prompt 应抛 ToolInputError
+  let threw = false;
+  try {
+    await analyzeVideo(mgr, { video_source: 'https://example.com/a.mp4', prompt: '   ' }, 100 * 1024 * 1024, {
+      fps: 1,
+      maxFrames: 30,
+    });
+  } catch (e) {
+    threw = e instanceof ToolInputError;
+  }
+  if (!threw) throw new Error('空 prompt 应抛 ToolInputError');
+
+  // 首轮无 video_source 应抛 ToolInputError
+  threw = false;
+  try {
+    await analyzeVideo(mgr, { prompt: '描述视频' }, 100 * 1024 * 1024, { fps: 1, maxFrames: 30 });
+  } catch (e) {
+    threw = e instanceof ToolInputError;
+  }
+  if (!threw) throw new Error('首轮无 video_source 应抛 ToolInputError');
+
+  console.log('analyze_video 参数校验: OK');
+}
+
 async function main(): Promise<void> {
   await testAnalyzeImages();
   await testAnalyzeDocument();
+  await testAnalyzeVideoValidation();
   console.log('\n✅ tools 全部测试通过');
 }
 

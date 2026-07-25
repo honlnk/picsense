@@ -31,17 +31,22 @@
     "smoke": "tsx scripts/smoke.ts",
     "smoke:session": "tsx scripts/smoke-session.ts",
     "smoke:tools": "tsx scripts/smoke-tools.ts",
+    "smoke:video": "tsx scripts/smoke-video.ts",
     "e2e": "pnpm build && tsx scripts/e2e-client.ts",
     "sim": "pnpm build && tsx scripts/zcode-sim.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "ffmpeg-static": "^5.3.0",
     "zod": "^3.25.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["ffmpeg-static"]
   }
 }

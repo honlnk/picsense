@@ -153,6 +153,35 @@ export class SessionManager {
   }
 
   /**
+   * 创建 session（传入已加载的图片），用于视频抽帧等场景——
+   * 调用方已自行完成图片加载（如 ffmpeg 抽帧），无需走 image-loader 重新加载。
+   *
+   * @param images 已加载的图片帧（如视频抽出的帧序列）。
+   * @param displaySources 用于 list_sessions 展示的来源引用（如视频 URL/路径，非完整 base64）。
+   * @param firstPrompt 首轮 prompt。
+   */
+  async createSessionWithImages(
+    images: LoadedImage[],
+    displaySources: string[],
+    firstPrompt: string,
+  ): Promise<TurnResult> {
+    const id = randomUUID();
+    const now = Date.now();
+    const session: Session = {
+      id,
+      summary: '',
+      imageSources: [...displaySources],
+      messages: [],
+      createdAt: now,
+      lastAccessAt: now,
+    };
+    const mutex = new Mutex();
+    this.sessions.set(id, { session, mutex });
+
+    return mutex.run(() => this.executeFirstTurnWithImages(session, images, firstPrompt));
+  }
+
+  /**
    * 在已有 session 上追加一轮提问。
    * session 不存在抛 SessionNotFoundError；provider 失败不污染 messages。
    */
@@ -193,7 +222,18 @@ export class SessionManager {
     for (const src of session.imageSources) {
       images.push(await loadImage(src, this.maxImageBytes));
     }
+    return this.executeFirstTurnWithImages(session, images, firstPrompt);
+  }
 
+  /**
+   * 首轮（图片已加载）：调 provider（带 summary）→ 写入 messages。
+   * 抽取自 executeFirstTurn，供 createSessionWithImages 复用（视频抽帧等场景）。
+   */
+  private async executeFirstTurnWithImages(
+    session: Session,
+    images: LoadedImage[],
+    firstPrompt: string,
+  ): Promise<TurnResult> {
     // 调 provider：传入本轮 user prompt（图片由 provider 挂在首轮）。
     const reqMessages: VisionMessage[] = [{ role: 'user', content: firstPrompt }];
     const res = await this.provider.analyze({

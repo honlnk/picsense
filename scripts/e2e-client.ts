@@ -5,9 +5,10 @@
  *
  * 验证点：
  * 1. initialize 握手成功
- * 2. tools/list 返回 3 个工具
+ * 2. tools/list 返回 4 个工具
  * 3. tools/call list_sessions 返回空列表
  * 4. tools/call analyze_images 参数校验生效（空 prompt → isError）
+ * 5. tools/call analyze_video 参数校验生效（空 prompt → isError）
  *
  * 注：真实图片识别需要有效 OPENAI_API_KEY，这里只验证管线连通与参数校验。
  */
@@ -88,7 +89,7 @@ async function main(): Promise<void> {
   const tools = ((listResp.find((r) => r.id === 2)?.result as { tools?: Array<{ name: string }> })?.tools) ?? [];
   const toolNames = tools.map((t) => t.name).sort();
   console.log('2. tools/list:', toolNames);
-  const expected = ['analyze_document', 'analyze_images', 'list_sessions'];
+  const expected = ['analyze_document', 'analyze_images', 'analyze_video', 'list_sessions'];
   if (JSON.stringify(toolNames) !== JSON.stringify(expected)) {
     throw new Error(`工具列表不符，期望 ${expected.join(',')}`);
   }
@@ -113,8 +114,20 @@ async function main(): Promise<void> {
   console.log('4. analyze_images bad-prompt isError:', badResult?.isError, '|', badResult?.content?.[0]?.text?.slice(0, 50));
   if (!badResult?.isError) throw new Error('空 prompt 应触发 isError');
 
+  await delay(150);
+
+  // 5. analyze_video 参数校验（空 prompt → isError）
+  send(proc, {
+    jsonrpc: '2.0', id: 5, method: 'tools/call',
+    params: { name: 'analyze_video', arguments: { video_source: 'https://example.com/a.mp4', prompt: '   ' } },
+  });
+  const vbadResp = await collectResponses(proc, 2000);
+  const vbadResult = vbadResp.find((r) => r.id === 5)?.result as { isError?: boolean; content?: Array<{ text: string }> };
+  console.log('5. analyze_video bad-prompt isError:', vbadResult?.isError, '|', vbadResult?.content?.[0]?.text?.slice(0, 50));
+  if (!vbadResult?.isError) throw new Error('analyze_video 空 prompt 应触发 isError');
+
   proc.kill();
-  console.log('\n✅ 端到端管线验证通过（3 工具已注册、参数校验生效、NDJSON 通信正常）');
+  console.log('\n✅ 端到端管线验证通过（4 工具已注册、参数校验生效、NDJSON 通信正常）');
 }
 
 main().catch((e) => {

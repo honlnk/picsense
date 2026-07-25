@@ -1,18 +1,19 @@
 # picsense
 
-> 本地图片识别 MCP，让单模态基座模型获得多模态视觉能力。
+> 本地图片/视频识别 MCP，让单模态基座模型获得多模态视觉能力。
 
-`picsense` 是一款**本地安装**的 [MCP](https://modelcontextprotocol.io/)（Model Context Protocol）服务。它通过调用多模态视觉模型 API，让任何**单模态**基座模型（如 GLM-5.2 这类无法直接处理图片的模型）也能识别图片内容。
+`picsense` 是一款**本地安装**的 [MCP](https://modelcontextprotocol.io/)（Model Context Protocol）服务。它通过调用多模态视觉模型 API，让任何**单模态**基座模型（如 GLM-5.2 这类无法直接处理图片/视频的模型）也能识别图片与视频内容。
 
-核心差异化：**支持多轮迭代识别**——基座模型可在处理任务的过程中多次调用，边干边查，逐步精修对图片的理解。
+核心差异化：**支持多轮迭代识别**——基座模型可在处理任务的过程中多次调用，边干边查，逐步精修对图片/视频的理解。
 
 ## 功能
 
-三个工具，按输入形态划分（不按场景拆工具，把 prompt 控制权交给基座模型）：
+四个工具，按输入形态划分（不按场景拆工具，把 prompt 控制权交给基座模型）：
 
 | 工具 | 输入 | 用途 |
 |------|------|------|
 | `analyze_images` | 图片数组 + prompt + 可选 `session_id` | 图片识别 + 多轮迭代（核心工具；传一张是单图，传多张是批量/对比） |
+| `analyze_video` | 视频（URL / 本地路径）+ prompt + 可选 `session_id` | 视频识别（抽帧后送视觉模型）+ 多轮迭代 |
 | `list_sessions` | 无 | 查看当前所有识别会话的列表与简介 |
 | `analyze_document` | 文档（URL / HTML / markdown） | 解析文档，识别其中所有图片，返回标注了图片描述的完整文档 |
 
@@ -68,6 +69,9 @@ cp .env.example .env
 | `OPENAI_MODEL` | 是* | — | OpenAI 模型名（如 `gpt-5.6-sol`） |
 | `OPENAI_BASE_URL` | 否 | `https://api.openai.com/v1` | 自定义 base URL（代理或兼容网关）。会自动规范化：不带 `/v1` 则补上 |
 | `MAX_IMAGE_MB` | 否 | `5` | 单张图片大小上限（MB） |
+| `MAX_VIDEO_MB` | 否 | `100` | 单个视频大小上限（MB） |
+| `VIDEO_MAX_FRAMES` | 否 | `30` | 视频抽帧的最大帧数（覆盖大多数 30 秒以内的短视频） |
+| `VIDEO_FPS` | 否 | `1` | 视频抽帧的采样率（每秒抽几帧） |
 | `TIMEOUT_MS` | 否 | `300000` | 视觉模型请求超时（毫秒） |
 
 \* 默认 provider 的 Key/Model 必填；其他 provider 仅在切换使用时才需要。
@@ -112,6 +116,15 @@ OPENAI_MODEL=gpt-5.6-sol
 - 格式：jpg / jpeg / png
 - 单张大小：≤ 5MB
 
+## 视频识别说明
+
+由于默认 provider（OpenAI Responses API）原生不支持视频，`analyze_video` 采用**抽帧方案**：用内置 ffmpeg（`ffmpeg-static`，跨平台自带二进制，无需系统安装）把视频解码成 JPEG 帧序列，再作为多张图发送给视觉模型。
+
+- 默认每秒抽 1 帧、最多 30 帧（可通过 `VIDEO_FPS` / `VIDEO_MAX_FRAMES` 调整）
+- 视频格式：mp4 / mov / m4v / avi / wmv / webm / mkv / flv / mpeg / mpg
+- 单个视频大小：≤ 100MB（可通过 `MAX_VIDEO_MB` 调整）
+- URL 视频会先下载到临时目录再抽帧，用完即清理
+
 ## 使用示例
 
 **单图识别：**
@@ -139,6 +152,14 @@ analyze_images({
 })
 ```
 
+**视频识别：**
+```
+analyze_video({
+  video_source: "https://example.com/demo.mp4",
+  prompt: "描述这段视频的内容和关键画面"
+})
+```
+
 **文档图片标注：**
 ```
 analyze_document({
@@ -163,7 +184,8 @@ pnpm typecheck     # 类型检查
 pnpm dev           # tsx watch 调试
 pnpm smoke         # image-loader 冒烟（无需 API Key）
 pnpm smoke:session # session-manager 单元测试（mock provider）
-pnpm smoke:tools   # 三个工具逻辑测试（mock provider）
+pnpm smoke:tools   # 四个工具逻辑测试（mock provider）
+pnpm smoke:video   # 视频抽帧 + 工具逻辑测试（真实 ffmpeg，无需 API Key）
 pnpm e2e           # 端到端 stdio 协议测试
 ```
 
