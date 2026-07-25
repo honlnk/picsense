@@ -52,10 +52,12 @@ async function main(): Promise<void> {
   // 构造默认 provider。
   const providerCfg = config.providers[config.defaultProvider];
   if (!providerCfg) {
-    process.stderr.write(
-      `[picsense] default provider "${config.defaultProvider}" is not configured.\n`,
+    // throw（而非 process.exit）：返回类型为 never，让 TS 严格控制流收窄
+    // providerCfg 为 ProviderConfig，同时交由 main().catch 统一输出。
+    throw new ConfigError(
+      `Default provider "${config.defaultProvider}" is not configured. ` +
+        `Please set the corresponding API_KEY and MODEL (see .env.example).`,
     );
-    process.exit(1);
   }
   const provider = getProvider(config.defaultProvider, providerCfg, {
     timeoutMs: config.timeoutMs,
