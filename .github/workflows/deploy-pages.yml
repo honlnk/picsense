@@ -1,0 +1,50 @@
+# 部署官网（docs/）到 GitHub Pages。
+# 推送到 main 分支后自动触发，部署 docs/ 目录下的静态文件。
+#
+# 首次使用前需在 GitHub 仓库 Settings → Pages 里：
+#   - Source 选 "GitHub Actions"
+# 自定义域名 picsense.honlnk.com 由 docs/CNAME 声明，
+# DNS 需添加 CNAME 记录指向 honlnk.github.io。
+
+name: Deploy Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/deploy-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同一时间只允许一次部署。
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      # 只部署官网文件（index.html + CNAME），排除 docs/ 下的设计文档。
+      - name: Stage site files
+        run: |
+          mkdir -p _site
+          cp docs/index.html docs/CNAME _site/
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
