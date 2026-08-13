@@ -73,7 +73,7 @@ async function main(): Promise<void> {
   sessionManager.startCleanup();
 
   const server = new McpServer(
-    { name: 'picsense', version: '0.1.0' },
+    { name: 'picsense', version: '0.1.1' },
     { capabilities: { tools: {} } },
   );
 

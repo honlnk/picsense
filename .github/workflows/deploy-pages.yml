@@ -1,19 +1,16 @@
 # 部署官网（docs/）到 GitHub Pages。
-# 推送到 main 分支后自动触发，部署 docs/ 目录下的静态文件。
+# 推送 v* tag 时自动触发，与 release 同步上线官网。
 #
-# 首次使用前需在 GitHub 仓库 Settings → Pages 里：
-#   - Source 选 "GitHub Actions"
+# 前置：GitHub 仓库 Settings → Pages → Source 选 "GitHub Actions"。
 # 自定义域名 picsense.honlnk.com 由 docs/CNAME 声明，
 # DNS 需添加 CNAME 记录指向 honlnk.github.io。
+# github-pages 环境需放行 v* tag（见 release-guide）。
 
 name: Deploy Pages
 
 on:
   push:
-    branches: [main]
-    paths:
-      - 'docs/**'
-      - '.github/workflows/deploy-pages.yml'
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:

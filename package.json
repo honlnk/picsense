@@ -1,6 +1,6 @@
 {
   "name": "@honlnk/picsense",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A local MCP server that gives unimodal LLMs multimodal vision — image/video recognition with multi-turn iterative analysis.",
   "type": "module",
   "license": "Apache-2.0",
