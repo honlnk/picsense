@@ -1,0 +1,57 @@
+# 发布 @honlnk/picsense 到 npm。
+# 触发：推送 v* tag（如 v0.1.1），或手动 workflow_dispatch。
+#
+# 认证方式：npm Trusted Publishing（OIDC）—— 无需 NPM_TOKEN。
+# 前置条件（只需配一次，见 docs/guides/release-guide.md 或仓库 README）：
+#   1. npmjs.com → 包设置 → Trusted Publishers → 添加 GitHub 仓库 honlnk/picsense
+#   2. workflow 名 = release-npm.yml，environment 留空或配 npm
+#   3. 确保用 node 24（自带 npm 11.x，OIDC 需要 npm ≥ 11.5.1）
+# 不要设置 NODE_AUTH_TOKEN（否则 setup-node 会注入 token、覆盖 OIDC 认证）。
+
+name: Release (npm)
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write  # OIDC Trusted Publishing 必需
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'  # npm 11.x，OIDC 需要
+          cache: pnpm
+          # 不要设 registry-url：会触发 NODE_AUTH_TOKEN 注入，覆盖 OIDC。
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check if version already published
+        id: skip
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if npm view "@honlnk/picsense@$VERSION" version >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Version $VERSION already on npm, skipping publish."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Will publish $VERSION."
+          fi
+
+      # prepublishOnly（package.json）会自动跑 build + typecheck，
+      # 因此这里直接 npm publish 即可，npm CLI 会用 OIDC 凭证认证。
+      - name: Publish
+        if: steps.skip.outputs.exists != 'true'
+        run: npm publish --access public
