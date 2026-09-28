@@ -30,6 +30,7 @@
 | P4 | [04-tools.md](./04-tools.md) | ✅ 完成 | 3 个工具的业务逻辑 |
 | P5 | [05-mcp-entry.md](./05-mcp-entry.md) | ✅ 完成 | stdio 入口 + 端到端可被 MCP 客户端调用 |
 | P6 | [06-docs-and-release.md](./06-docs-and-release.md) | ✅ 完成 | README / .env.example / 接入指南 |
+| P7 | [07-protocol-expansion.md](./07-protocol-expansion.md) | ✅ 完成 | instructions 修复（issue #3）+ chat / anthropic 双协议 provider |
 
 ## 三、开发顺序的依赖关系
 

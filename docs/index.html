@@ -307,8 +307,8 @@
       <ul class="feature-list">
         <li><strong>多轮迭代识别</strong> — 基座模型可多次调用，边干边查，逐步精修对图片/视频的理解（详见下方）</li>
         <li><strong>本地 stdio 部署</strong> — 走本地进程间通信，不依赖外部服务器，<code>npx</code> 一行启动</li>
-        <li><strong>多 provider 架构</strong> — <code>VisionProvider</code> 接口，首版支持 OpenAI，可扩展 Qwen / Kimi</li>
-        <li><strong>任意 provider 自配</strong> — 接任何实现了 OpenAI Responses API 的网关，不绑定单一模型厂商</li>
+        <li><strong>多 provider 架构</strong> — <code>VisionProvider</code> 接口，支持 OpenAI Responses / Chat Completions / Anthropic 三协议</li>
+        <li><strong>任意 provider 自配</strong> — 接任何 OpenAI Responses / Chat Completions / Anthropic 兼容网关，不绑定单一模型厂商</li>
         <li><strong>零硬编码配置</strong> — 全部配置走环境变量，代码内零硬编码</li>
         <li><strong>自动识别输入形态</strong> — URL / 本地路径 / base64 三种形态兼容，适配不同 Agent 的传图方式</li>
       </ul>
@@ -362,7 +362,7 @@
       <p class="section-desc">需要 Node.js ≥ 20。无需克隆仓库，<code>npx</code> 一行启动，配置一次永久生效。</p>
 
       <h3>1. 配置 AI 客户端</h3>
-      <p>在你的 AI 客户端（ZCode / Claude Desktop / Cursor / 其他 MCP 客户端）的配置文件中加入。需提供自己的多模态模型 API Key（默认用 OpenAI Responses API）：</p>
+      <p>在你的 AI 客户端（ZCode / Claude Desktop / Cursor / 其他 MCP 客户端）的配置文件中加入。需提供自己的多模态模型 API Key（默认用 OpenAI Responses API，也可切换 Chat Completions / Anthropic 协议）：</p>
 
       <div class="tabs">
         <div class="tab-headers">
@@ -405,6 +405,20 @@
         <strong>Windows 必读：</strong>Windows 上 npx 需通过 <code>cmd /c</code> 包裹（如上），否则无法正确启动。
       </div>
 
+      <h4 style="margin-top: 20px;">切换协议（可选）</h4>
+      <p>把 <code>env</code> 换成对应协议的三个变量即可，其余配置不变：</p>
+      <pre><code>// Chat Completions —— 腾讯 Coding Copilot / DeepSeek 官方 / Qwen 等兼容网关
+"DEFAULT_PROVIDER": "chat",
+"CHAT_API_KEY": "ck-xxx",
+"CHAT_MODEL": "hy4-preview",
+"CHAT_BASE_URL": "https://copilot.tencent.com/v2"
+
+// Anthropic —— Anthropic 官方 / DeepSeek 官方 /anthropic 端点
+"DEFAULT_PROVIDER": "anthropic",
+"ANTHROPIC_API_KEY": "sk-xxx",
+"ANTHROPIC_MODEL": "deepseek-v4-flash-vision-exp",
+"ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic"</code></pre>
+
       <h3>2. 验证</h3>
       <p>配置完成后，在 AI 客户端里粘贴一张图片提问，例如「描述这张 UI 截图的布局」。基座模型会自动调用 <code>analyze_images</code> 工具识别并返回描述。</p>
 
@@ -442,10 +456,16 @@ analyze_images({
           <tr><th>变量</th><th>必填</th><th>默认值</th><th>说明</th></tr>
         </thead>
         <tbody>
-          <tr><td><code>DEFAULT_PROVIDER</code></td><td>是</td><td><code>openai</code></td><td>默认 provider</td></tr>
+          <tr><td><code>DEFAULT_PROVIDER</code></td><td>是</td><td><code>openai</code></td><td>默认 provider（<code>openai</code> / <code>chat</code> / <code>anthropic</code>）</td></tr>
           <tr><td><code>OPENAI_API_KEY</code></td><td>是*</td><td>—</td><td>OpenAI API Key</td></tr>
           <tr><td><code>OPENAI_MODEL</code></td><td>是*</td><td>—</td><td>模型名（如 <code>gpt-5.6-sol</code>）</td></tr>
           <tr><td><code>OPENAI_BASE_URL</code></td><td>否</td><td>官方地址</td><td>自定义 base URL（代理或兼容网关）</td></tr>
+          <tr><td><code>CHAT_API_KEY</code></td><td>是*</td><td>—</td><td>Chat Completions 协议 API Key（provider=chat）</td></tr>
+          <tr><td><code>CHAT_MODEL</code></td><td>是*</td><td>—</td><td>模型名（如 <code>hy4-preview</code>）</td></tr>
+          <tr><td><code>CHAT_BASE_URL</code></td><td>否</td><td>官方地址</td><td>兼容网关（腾讯 <code>copilot.tencent.com/v2</code> 等）</td></tr>
+          <tr><td><code>ANTHROPIC_API_KEY</code></td><td>是*</td><td>—</td><td>Anthropic 协议 API Key（provider=anthropic）</td></tr>
+          <tr><td><code>ANTHROPIC_MODEL</code></td><td>是*</td><td>—</td><td>模型名（如 <code>claude-sonnet-4</code>）</td></tr>
+          <tr><td><code>ANTHROPIC_BASE_URL</code></td><td>否</td><td>官方地址</td><td>兼容端点（DeepSeek <code>api.deepseek.com/anthropic</code> 等）</td></tr>
           <tr><td><code>MAX_IMAGE_MB</code></td><td>否</td><td><code>5</code></td><td>单张图片大小上限（MB）</td></tr>
           <tr><td><code>MAX_VIDEO_MB</code></td><td>否</td><td><code>100</code></td><td>单个视频大小上限（MB）</td></tr>
           <tr><td><code>VIDEO_MAX_FRAMES</code></td><td>否</td><td><code>30</code></td><td>视频抽帧最大帧数</td></tr>
@@ -456,7 +476,7 @@ analyze_images({
       <p style="font-size: 13px; color: var(--text-muted);">* 默认 provider 的 Key/Model 必填；其他 provider 仅在切换使用时才需要。</p>
 
       <div class="callout callout-info">
-        <strong>API 格式：</strong>provider 使用 OpenAI <strong>Responses API</strong>（<code>/v1/responses</code> 原生格式），兼容任何实现了该 API 的网关。换 provider 只需改环境变量，无需改代码。
+        <strong>API 格式（三协议）：</strong><code>openai</code> 走 Responses API（<code>/v1/responses</code>）；<code>chat</code> 走 Chat Completions（始终流式，兼容腾讯等强制流式网关）；<code>anthropic</code> 走 Messages API（<code>/v1/messages</code>，图片自动转 base64）。换协议/provider 只需改环境变量，无需改代码。
       </div>
 
       <h3>视频识别的 ffmpeg 依赖</h3>

@@ -28,9 +28,9 @@ import type {
 import { registerProvider } from './index.js';
 import { withRetry } from './retry.js';
 
-/** Responses API 的 input message。 */
+/** Responses API 的 input message。system 提示走顶层 instructions（见 SUMMARY_INSTRUCTIONS）。 */
 interface ResponsesInputMessage {
-  role: 'system' | 'user' | 'assistant';
+  role: 'user' | 'assistant';
   content: string | Array<ResponsesContentPart>;
 }
 
@@ -69,22 +69,23 @@ function normalizeBaseUrl(raw: string | undefined): string {
 }
 
 /**
+ * 首轮生成 summary 时的系统指令。
+ *
+ * 走请求体顶层 `instructions` 字段而非 input 内的 system 消息：两者在 OpenAI
+ * 官方语义等价（instructions = 上下文最前插一条系统消息），但部分网关的
+ * Responses 实现不接受 input 里的 system 角色（如 Kimi /coding/v1，见 issue #3），
+ * instructions 是兼容面最大的写法。
+ */
+const SUMMARY_INSTRUCTIONS =
+  'You are a vision assistant. After your description, append a one-sentence summary of this image session wrapped in <summary>...</summary> tags. The summary should capture the essence of what the user is analyzing.';
+
+/**
  * 把 VisionRequest 转换为 Responses API 的 input 数组。
  *
  * 规则：images 只附加到 messages 里第一条 user 消息的 content（首轮）。
  */
 function buildInput(req: VisionRequest): ResponsesInputMessage[] {
   const input: ResponsesInputMessage[] = [];
-
-  // system 消息：仅当需要生成 summary 时，给一个极简结构指令。
-  // 不预设场景化 prompt（设计文档 §2.3）。
-  if (req.generateSummary) {
-    input.push({
-      role: 'system',
-      content:
-        'You are a vision assistant. After your description, append a one-sentence summary of this image session wrapped in <summary>...</summary> tags. The summary should capture the essence of what the user is analyzing.',
-    });
-  }
 
   let imagesAttached = false;
   for (const msg of req.messages) {
@@ -168,6 +169,8 @@ class OpenAIProvider implements VisionProvider {
     const body = {
       model: this.model,
       input,
+      // system 提示走顶层 instructions（兼容性见 SUMMARY_INSTRUCTIONS 注释）。
+      ...(req.generateSummary ? { instructions: SUMMARY_INSTRUCTIONS } : {}),
       // 非流式，便于一次性拿到完整回复。
       stream: false,
     };
