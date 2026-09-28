@@ -9,6 +9,8 @@
  */
 
 import './openai.js';
+import './chat.js';
+import './anthropic.js';
 // 后续 provider 在此注册：
 // import './qwen.js';
 // import './kimi.js';

@@ -6,7 +6,7 @@
  */
 
 /** 已实现的 provider 名称。 */
-export type ProviderName = 'openai' | 'qwen' | 'kimi';
+export type ProviderName = 'openai' | 'chat' | 'anthropic' | 'qwen' | 'kimi';
 
 /** 单个 provider 的连接配置。 */
 export interface ProviderConfig {
@@ -45,7 +45,7 @@ export interface AppConfig {
 const ONE_MB = 1024 * 1024;
 const ONE_HOUR = 60 * 60 * 1000;
 
-const SUPPORTED_PROVIDERS: readonly ProviderName[] = ['openai', 'qwen', 'kimi'];
+const SUPPORTED_PROVIDERS: readonly ProviderName[] = ['openai', 'chat', 'anthropic', 'qwen', 'kimi'];
 
 function isProviderName(value: string): value is ProviderName {
   return (SUPPORTED_PROVIDERS as readonly string[]).includes(value);
@@ -83,6 +83,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
 
   const providers: Record<ProviderName, ProviderConfig | undefined> = {
     openai: readProvider('openai', env),
+    chat: readProvider('chat', env),
+    anthropic: readProvider('anthropic', env),
     qwen: readProvider('qwen', env),
     kimi: readProvider('kimi', env),
   };

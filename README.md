@@ -77,10 +77,16 @@ apt install ffmpeg
 
 | 变量 | 必填 | 默认值 | 说明 |
 |------|------|--------|------|
-| `DEFAULT_PROVIDER` | 是 | `openai` | 默认 provider（`openai` / `qwen` / `kimi`） |
+| `DEFAULT_PROVIDER` | 是 | `openai` | 默认 provider（`openai` / `chat` / `anthropic`；`qwen` / `kimi` 规划中） |
 | `OPENAI_API_KEY` | 是* | — | OpenAI API Key（当 provider=openai 时必填） |
 | `OPENAI_MODEL` | 是* | — | OpenAI 模型名（如 `gpt-5.6-sol`） |
 | `OPENAI_BASE_URL` | 否 | `https://api.openai.com/v1` | 自定义 base URL（代理或兼容网关）。会自动规范化：不带 `/v1` 则补上 |
+| `CHAT_API_KEY` | 是* | — | Chat Completions 协议的 API Key（当 provider=chat 时必填） |
+| `CHAT_MODEL` | 是* | — | 模型名（如 `hy4-preview`、`deepseek-v4-flash`） |
+| `CHAT_BASE_URL` | 否 | `https://api.openai.com/v1` | 兼容网关 base URL（腾讯传 `https://copilot.tencent.com/v2` 等）。自动规范化同上（`/v2` 等版本后缀原样保留） |
+| `ANTHROPIC_API_KEY` | 是* | — | Anthropic 协议的 API Key（当 provider=anthropic 时必填） |
+| `ANTHROPIC_MODEL` | 是* | — | 模型名（如 `claude-sonnet-4`、`deepseek-v4-flash-vision-exp`） |
+| `ANTHROPIC_BASE_URL` | 否 | `https://api.anthropic.com` | 兼容端点 base URL（如 `https://api.deepseek.com/anthropic`）。自动补 `/v1` 后请求 `/v1/messages` |
 | `MAX_IMAGE_MB` | 否 | `5` | 单张图片大小上限（MB） |
 | `MAX_VIDEO_MB` | 否 | `100` | 单个视频大小上限（MB） |
 | `VIDEO_MAX_FRAMES` | 否 | `30` | 视频抽帧的最大帧数（覆盖大多数 30 秒以内的短视频） |
@@ -89,18 +95,37 @@ apt install ffmpeg
 
 \* 默认 provider 的 Key/Model 必填；其他 provider 仅在切换使用时才需要。
 
-> **API 格式**：provider 使用 OpenAI **Responses API**（`/v1/responses` 原生格式），而非 Chat Completions。兼容任何实现了 Responses API 的网关。
+> **API 格式（三协议并存）**：
+> - `openai` — OpenAI **Responses API**（`/v1/responses` 原生格式），兼容任何实现了 Responses API 的网关；
+> - `chat` — OpenAI **Chat Completions**（`/chat/completions`，内部始终流式以兼容强制流式的网关），适配腾讯 Coding Copilot、DeepSeek 官方及绝大多数 OpenAI 兼容网关；
+> - `anthropic` — Anthropic **Messages API**（`/v1/messages`，`x-api-key` 鉴权，图片自动转 base64），适配 Anthropic 官方与 DeepSeek 官方 `/anthropic` 端点。
 
 ### 多 provider 配置示例
 
-**OpenAI（首版推荐）：**
+**OpenAI Responses（首版推荐）：**
 ```bash
 DEFAULT_PROVIDER=openai
 OPENAI_API_KEY=sk-xxx
 OPENAI_MODEL=gpt-5.6-sol
 ```
 
-**Qwen（后续支持） / Kimi（后续支持）：** 当前版本仅实现 OpenAI 适配器，Qwen 与 Kimi 适配器规划中。新增 provider 只需实现 `VisionProvider` 接口。
+**Chat Completions（腾讯 Coding Copilot 示例）：**
+```bash
+DEFAULT_PROVIDER=chat
+CHAT_API_KEY=ck-xxx
+CHAT_MODEL=hy4-preview
+CHAT_BASE_URL=https://copilot.tencent.com/v2
+```
+
+**Anthropic（DeepSeek 官方 anthropic 端点示例）：**
+```bash
+DEFAULT_PROVIDER=anthropic
+ANTHROPIC_API_KEY=sk-xxx
+ANTHROPIC_MODEL=deepseek-v4-flash-vision-exp
+ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic
+```
+
+**Qwen（后续支持） / Kimi（后续支持）：** 适配器规划中（两者协议均为 Chat Completions 兼容，可直接先用 `chat` provider 配置）。新增 provider 只需实现 `VisionProvider` 接口。
 
 ## 接入 AI 客户端
 
