@@ -361,6 +361,37 @@
       <h2>接入 AI 客户端</h2>
       <p class="section-desc">需要 Node.js ≥ 20。无需克隆仓库，<code>npx</code> 一行启动，配置一次永久生效。</p>
 
+      <h3>一键接入（推荐）</h3>
+      <p>把下面这段话<strong>原样复制</strong>发给你的 AI 助手（ZCode / Claude Code 等），它会先停下来向你要视觉模型信息，然后自动完成安装、MCP 配置与配套技能安装：</p>
+      <div style="display:flex; justify-content:flex-end; margin-bottom:-8px;">
+        <button id="copy-agent-prompt" class="btn btn-secondary" style="padding:6px 14px; font-size:13px;">复制提示词</button>
+      </div>
+      <pre style="white-space:pre-wrap; word-break:break-word;"><code id="agent-prompt-text">请帮我接入 picsense——本地图片/视频/文档识别 MCP 服务，并安装它的配套使用技能。
+
+第一步：确认视觉模型信息。picsense 本身免费开源、本地运行，但识别图片/视频需要调用一个多模态视觉模型。检查我在对话中是否已给出「协议 + API Key + 模型名」；如果没有，停下来向我询问，并告诉我协议三选一：
+1. OpenAI 官方 API，或任意 OpenAI 兼容网关（可配自定义 base URL）
+2. Chat Completions 协议网关（腾讯 Coding Copilot、DeepSeek 等）
+3. Anthropic 协议（官方 API，或 DeepSeek 等兼容端点）
+注意：所选模型必须具备视觉（图片理解）能力。拿到信息之前不要进行后续步骤。
+
+第二步：安装并配置 MCP 服务器（本地 stdio 传输）。
+npm i -g @honlnk/picsense
+按你所在环境的标准方式写入配置：
+- ZCode：~/.zcode/cli/config.json 的 mcp.servers，形如 {"type":"stdio","command":"picsense","args":[],"env":{"DEFAULT_PROVIDER":"openai","OPENAI_API_KEY":"你的Key","OPENAI_MODEL":"模型名"},"timeoutMs":900000}（视频识别较慢，超时给足）
+- Claude Code：claude mcp add picsense --env DEFAULT_PROVIDER=openai --env OPENAI_API_KEY=你的Key --env OPENAI_MODEL=模型名 -- picsense
+- Claude Desktop / Cursor / 其他 MCP 客户端：mcpServers 配置节，command 用 npx、args 用 ["-y","@honlnk/picsense"]（Windows 需用 cmd /c 包裹 npx），env 同上
+所选协议对应的环境变量见官网 https://picsense.honlnk.com/ 的「环境变量」一节；视频识别依赖 ffmpeg（安装时自动下载，pnpm 注意事项见官网「配置」一节）。
+
+第三步：安装配套技能——只装 picsense-usage 这一个，不要把技能仓库里的其他技能装进技能目录。
+git clone --depth 1 https://github.com/honlnk/honlnk-skills /tmp/honlnk-skills
+把 /tmp/honlnk-skills/skills/picsense-usage 复制到你的技能目录（ZCode：~/.agents/skills/；Claude Code：~/.claude/skills/；其他 Agent：对应的技能发现目录），完成后删除 /tmp/honlnk-skills。
+该技能承载「怎么用好这套工具」：读带图文章的完整链路、图片 URL 形态修正、全文标注与单图深读怎么选、session 多轮迭代、常见坑。
+
+全部完成后重载配置或重启会话，确认工具列表出现 picsense 的 analyze_images / analyze_document 等工具即为接入成功，并向我报告结果。</code></pre>
+      <div class="callout callout-info">
+        <strong>配套技能来自</strong> <a href="https://github.com/honlnk/honlnk-skills" target="_blank" rel="noopener">honlnk/honlnk-skills</a>：<code>picsense-usage</code> 教你的 Agent 怎么用好这套工具。不想用一键接入？按下面 1、2 两步手动配置即可。
+      </div>
+
       <h3>1. 配置 AI 客户端</h3>
       <p>在你的 AI 客户端（ZCode / Claude Desktop / Cursor / 其他 MCP 客户端）的配置文件中加入。需提供自己的多模态模型 API Key（默认用 OpenAI Responses API，也可切换 Chat Completions / Anthropic 协议）：</p>
 
@@ -456,7 +487,7 @@ analyze_images({
           <tr><th>变量</th><th>必填</th><th>默认值</th><th>说明</th></tr>
         </thead>
         <tbody>
-          <tr><td><code>DEFAULT_PROVIDER</code></td><td>是</td><td><code>openai</code></td><td>默认 provider（<code>openai</code> / <code>chat</code> / <code>anthropic</code>）</td></tr>
+          <tr><td><code>DEFAULT_PROVIDER</code></td><td>否</td><td><code>openai</code></td><td>默认 provider（<code>openai</code> / <code>chat</code> / <code>anthropic</code>）</td></tr>
           <tr><td><code>OPENAI_API_KEY</code></td><td>是*</td><td>—</td><td>OpenAI API Key</td></tr>
           <tr><td><code>OPENAI_MODEL</code></td><td>是*</td><td>—</td><td>模型名（如 <code>gpt-5.6-sol</code>）</td></tr>
           <tr><td><code>OPENAI_BASE_URL</code></td><td>否</td><td>官方地址</td><td>自定义 base URL（代理或兼容网关）</td></tr>
@@ -507,7 +538,7 @@ apt install ffmpeg</code></pre>
   </footer>
 
   <script>
-    // Tab switching (唯一的 JS：macOS/Linux vs Windows 配置切换)
+    // Tab 切换（macOS/Linux vs Windows 配置切换）
     document.querySelectorAll('.tab-headers button').forEach(function(btn) {
       btn.addEventListener('click', function() {
         var tab = this.getAttribute('data-tab');
@@ -516,6 +547,33 @@ apt install ffmpeg</code></pre>
         document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
         document.getElementById('tab-' + tab).classList.add('active');
       });
+    });
+
+    // 一键接入：复制提示词（navigator.clipboard 优先；非安全上下文降级 execCommand）
+    document.getElementById('copy-agent-prompt').addEventListener('click', function() {
+      var text = document.getElementById('agent-prompt-text').innerText;
+      var btn = this;
+      function done(ok) {
+        btn.textContent = ok ? '✓ 已复制' : '复制失败，请手动选择复制';
+        setTimeout(function() { btn.textContent = '复制提示词'; }, 2000);
+      }
+      function fallback() {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = false;
+        try { ok = document.execCommand('copy'); } catch (e) {}
+        document.body.removeChild(ta);
+        done(ok);
+      }
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(function() { done(true); }, fallback);
+      } else {
+        fallback();
+      }
     });
   </script>
 </body>
