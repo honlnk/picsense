@@ -6,7 +6,7 @@
  * 1. 加载并校验配置（缺失必填项 → 友好报错到 stderr 后退出）。
  * 2. 构造默认 provider（触发 provider 注册）。
  * 3. 创建 SessionManager（含多轮迭代、并发隔离、24h 过期清理）。
- * 4. 注册 3 个工具：analyze_images / list_sessions / analyze_document。
+ * 4. 注册 4 个工具：analyze_images / analyze_video / analyze_document / list_sessions。
  * 5. 经 stdio 传输与 MCP 客户端通信。
  *
  * 设计依据：docs/picsense-design.md §4.1、§6.3；docs/plan/05-mcp-entry.md。
@@ -14,6 +14,7 @@
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { createRequire } from 'node:module';
 import { z } from 'zod';
 
 import { loadConfig, ConfigError } from './utils/config.js';
@@ -72,8 +73,14 @@ async function main(): Promise<void> {
   );
   sessionManager.startCleanup();
 
+  // 版本号取自 package.json，避免 bump 后握手版本跟发布版本脱节。
+  // 用 createRequire 而非 JSON import：import attributes 需要 Node ≥20.10。
+  const { version } = createRequire(import.meta.url)('../package.json') as {
+    version: string;
+  };
+
   const server = new McpServer(
-    { name: 'picsense', version: '0.1.1' },
+    { name: 'picsense', version },
     { capabilities: { tools: {} } },
   );
 
