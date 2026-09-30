@@ -77,7 +77,7 @@ apt install ffmpeg
 
 | 变量 | 必填 | 默认值 | 说明 |
 |------|------|--------|------|
-| `DEFAULT_PROVIDER` | 是 | `openai` | 默认 provider（`openai` / `chat` / `anthropic`；`qwen` / `kimi` 规划中） |
+| `DEFAULT_PROVIDER` | 否 | `openai` | 默认 provider（`openai` / `chat` / `anthropic`；`qwen` / `kimi` 规划中） |
 | `OPENAI_API_KEY` | 是* | — | OpenAI API Key（当 provider=openai 时必填） |
 | `OPENAI_MODEL` | 是* | — | OpenAI 模型名（如 `gpt-5.6-sol`） |
 | `OPENAI_BASE_URL` | 否 | `https://api.openai.com/v1` | 自定义 base URL（代理或兼容网关）。会自动规范化：不带 `/v1` 则补上 |
